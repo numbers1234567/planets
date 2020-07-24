@@ -1,5 +1,5 @@
 """
-Contains base classes for gravitaty calculations.
+Contains base classes for gravity calculations.
 Most of the math stays here.
 """
 import math
@@ -14,16 +14,19 @@ class GravitatedObject:
     """
     gravitationFriends are other GravitatedObject's which affect the force on this object.
     start_velocity is an (x, y) vector holding... Velocity!
+    Size is in radius of circle
     """
-    def __init__(self, x, y, size, start_velocity, mass, gravitationFriends):
+    def __init__(self, x, y, size, start_velocity, turn_spd, mass, gravitationFriends):
 
         self.circle = pyglShapes.Circle(x, y, size, segments=10)
         self.in_circle = pyglShapes.Circle(x, y, size-1, segments=10, color=(0,0,0))
 
         self.velocity = start_velocity
         self.mass = mass
+        self.physrotation = 0
 
         self.gravitationFriends = gravitationFriends
+        self.drotation = turn_spd
 
     """
     Calculates and sets the next self.x, self.y and self.velocity, assuming spontaneous change.
@@ -59,7 +62,7 @@ class GravitatedObject:
         self.force_on_center(forceVector)
 
         # [--TODO--] Torque
-
+        self.physrotation += self.drotation
         # Probably we could do some collision checks here
 
         self.in_circle.x = self.circle.x
@@ -76,16 +79,16 @@ class GravitatedObject:
         
         self.circle.x += self.velocity[0]
         self.circle.y += self.velocity[1]
-    """
-    def torque(self, torque???):
+    
+    """"def torque(self):
         pass"""
 
     """
     Single render, for testing
     """
     def render_function(self):
+        self.circle.draw()
         self.in_circle.draw()
-        self.circle_draw()
 
 
 class AttachableObject(GravitatedObject, pyglSprite.Sprite):
@@ -93,20 +96,17 @@ class AttachableObject(GravitatedObject, pyglSprite.Sprite):
     attached might not be obvious, but this is the other object that this one is attached to
     orientation is in relation to attached object if attached to something, but is normal rotation if not attached to something
     """
-    def __init__(self, sprite_img, gravitationFriends, velocity=[0, 0], x=0, y=0, orientation=0, attached=None):
-        self.attached = attached
-        determined_x = x
-        determined_y = y
-        if attached:
-            self.attached_rotation = orientation # Rotation in relation to the attached circle
-            determined_x = attached.circle.x
-            determined_y = attached.circle.y
-        else:
-            self.attached_rotation = 0
-            self.rotation = orientation
+    def __init__(self, sprite_img, spritesize, gravitationFriends, velocity=[0, 0], x=0, y=0, orientation=0, attached=None):
+        pyglSprite.Sprite.__init__(self, sprite_img, x=x, y=y, subpixel=True)
+        GravitatedObject.__init__(self, x, y, spritesize/2, velocity, 0, 0.25, gravitationFriends)
 
-        pyglSprite.Sprite.__init__(self, sprite_img, x=determined_x, y=determined_y, subpixel=True)
-        GravitatedObject.__init__(self, determined_x, determined_y, 5, velocity, 0.25, gravitationFriends)
+        self.scale = spritesize/self.height
+        self.attached = attached
+        self.rotation = orientation
+        if self.attached:
+            self.attached_rotation = orientation
+            self.set_position()
+            self.align_transformations()
 
         #self.circle.visible = False
         #self.in_circle.visible = False
@@ -116,38 +116,41 @@ class AttachableObject(GravitatedObject, pyglSprite.Sprite):
     Should be called after any change in orientation or position
     """
     def align_transformations(self):
-        if attached:
+        if self.attached:
             # Circle is irrelevant, but it should still follow
             self.circle.x = self.x
             self.circle.y = self.y
-            self.circle.rotation = self.rotation
+            self.physrotation = self.rotation
 
         else:
             # Other way around
             self.x = self.circle.x
             self.y = self.circle.y
-            self.rotation = self.circle.rotation
+            self.rotation = self.physrotation
 
     """
     Set coordinates based on position on attached object
     """
     def set_position(self):
-        assert attached != None # bruh
+        assert self.attached != None # bruh
         
+        self.x = self.attached.circle.x + math.sin(self.rotation*math.pi/180)*(self.circle.radius + self.attached.circle.radius)
+        self.y = self.attached.circle.y + math.cos(self.rotation*math.pi/180)*(self.circle.radius + self.attached.circle.radius)
+        self.align_transformations()
 
     """
     Again, this just handles spontaneous transformations.
     Other forces placed on object is handled in parent
     """
     def next_move(self):
-        if not attached:
+        if not self.attached:
             super().next_move() # If it isn't attached, so it behaves like any other gravitatedObject!
             return self.align_transformations()
 
         # Update orientation
-        self.rotation = self.attached_rotation + self.attached.rotation
-
-        self.align_transformations()
+        self.rotation = self.attached.physrotation + self.attached_rotation
+        #print(self.rotation)
+        self.set_position()
 
     """
     Attach object to other.
@@ -160,4 +163,7 @@ class AttachableObject(GravitatedObject, pyglSprite.Sprite):
         self.y = other.circle.y
         # resolve orientation
         self.rotation = world_orientation
-        self.attached_rotation = world_orientation-self.attached.rotation
+        self.attached_rotation = world_orientation-self.attached.physrotation
+
+    def render_function(self):
+        self.draw()
