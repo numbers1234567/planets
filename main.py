@@ -1,33 +1,65 @@
-from GravitationObject import GravitatedObject, AttachableObject
 import players
 import pyglet
+import pyglet.window.key as pyglKey
+from GravitationObject import on_collision, render_batch, planets
+import time
 
-planets = []
-planets.append(GravitatedObject(100, 300, 5, [0, 0.3], 1, 0.5, planets))
-planets.append(GravitatedObject(500, 300, 5, [0, -0.3], 1, 0.5, planets))
-planets.append(GravitatedObject(300, 300, 10, [0, 0], 1, 1, []))
-print(planets)
+soldier = players.Soldier(attached=planets[0])
+planets.append(soldier)
 
-img = pyglet.image.load("bro.png")
-img.anchor_x = int(img.width/2)
-img.anchor_y = int(img.height/2)
+a_pressed = False
 
-thing = AttachableObject(img, 20, planets, x=10, y=10, attached=planets[1])
+class main(pyglet.window.Window):
+    def __init__(self):
+        super().__init__(800, 700)
+        pyglet.clock.schedule_interval(self.update, 0.0167)
+        self.left_pressed = False
+        self.right_pressed = False
+        self.attach_button = False
 
-window = pyglet.window.Window(600, 600)
+    def update(self, dt):
+        start = time.time()
+        for i in range(len(planets)):
+            planet = planets[i]
+            planet.next_move()
+            for x in range(i, len(planets)):
+                otherPlanet = planets[x]
+                if otherPlanet != planet:
+                    on_collision(planet, otherPlanet)
 
-def update(dt):
-    for planet in planets:
-        planet.next_move()
+        if self.left_pressed:
+            soldier.walk(-1)
+        if self.right_pressed:
+            soldier.walk(1)
+        soldier.next_move()
 
-    thing.next_move()
+    def on_draw(self):
+        self.clear()
+        render_batch.draw()
+        #soldier.render_function()
 
-@window.event
-def on_draw():
-    window.clear()
-    for planet in planets:
-        planet.render_function()
-    thing.render_function()
+    def on_key_press(self, symbol, modifiers):
+        if symbol == pyglKey.A:
+            self.left_pressed = True
+        
+        if symbol == pyglKey.D:
+            self.right_pressed = True
 
-pyglet.clock.schedule_interval(update, 0.0167)
-pyglet.app.run()
+        if symbol == pyglKey.SPACE:
+            soldier.deattach()
+
+    def on_key_release(self, symbol, modifiers):
+        if symbol == pyglKey.A:
+            self.left_pressed = False
+        
+        if symbol == pyglKey.D:
+            self.right_pressed = False
+
+    def on_mouse_press(self, x, y, button, modifiers):
+        return
+        planets.append(GravitatedObject(x, y, 20, [0, 0], 5, 2, planets))
+
+
+if __name__=="__main__":
+    main()
+    pyglet.app.run()
