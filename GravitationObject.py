@@ -17,6 +17,25 @@ physicsLib = CDLL("physics.dylib")
 physicsLib.addGravObject.restype = c_int
 
 """
+Handles collision between two gravitatedObject's
+Uses law of conservation of momentum and law of conservatino of energy
+"""
+def on_collision_get_normal(c1, other): # Gets normals for on_collision
+    # Make sure the objects are sufficiently close
+    assert c1.circle.radius + other.circle.radius + 1 > math.sqrt((c1.circle.x-other.circle.x)**2 + (c1.circle.y-other.circle.y)**2)
+    centroidDistance = c1.circle.radius + other.circle.radius
+    normalVelocityDir = [(other.circle.x-c1.circle.x)/centroidDistance, (other.circle.y-c1.circle.y)/centroidDistance] # Normalized to be length 1
+    normalVelocityScalar = (normalVelocityDir[0]*c1.velocity[0] + normalVelocityDir[1]*c1.velocity[1]) # Length of self.velocity cancels out with cos() vector formula
+
+    normalVelocity = [normalVelocityDir[0]*normalVelocityScalar, normalVelocityDir[1]*normalVelocityScalar]
+    return normalVelocity
+
+def check_collision(c1, other):
+    # Return if distance between centers is less than the sum of radius
+    return c1.circle.radius + other.circle.radius + 1 > math.sqrt((c1.circle.x-other.circle.x)**2 + (c1.circle.y-other.circle.y)**2)
+
+
+"""
 Converts polar to cartesian coordinates
 First number is the angle (in degrees), second is length
 """
@@ -120,6 +139,30 @@ class GravitatedObject:
             return
         physicsLib.updateData(self.id, x, y, velx, vely, mass)
 
+    def bounce(self, other):
+        c1 = self
+
+        centerDistance = c1.circle.radius + other.circle.radius
+
+        dotProduct = (c1.velocity[0]-other.velocity[0])*(c1.circle.x-other.circle.x) + (c1.velocity[1]-other.velocity[1])*(c1.circle.y-other.circle.y)
+
+        newVel = [c1.velocity[0] - 2*other.mass*dotProduct*(c1.circle.x-other.circle.x)/((c1.mass + other.mass)*centerDistance*centerDistance),
+                  c1.velocity[1] - 2*other.mass*dotProduct*(c1.circle.y-other.circle.y)/((c1.mass + other.mass)*centerDistance*centerDistance)]
+        newOtherVel = [other.velocity[0] - 2*other.mass*dotProduct*(other.circle.x-c1.circle.x)/((c1.mass + other.mass)*centerDistance*centerDistance), 
+                       other.velocity[1] - 2*other.mass*dotProduct*(other.circle.y-c1.circle.y)/((c1.mass + other.mass)*centerDistance*centerDistance)]
+
+        c1.velocity = newVel
+        other.velocity = newOtherVel
+        while check_collision(c1, other):
+            c1.move(c1.velocity[0], c1.velocity[1], rotation=0)
+            other.move(other.velocity[0], other.velocity[1], rotation=0)
+
+    def on_collision(self, other, first_caller=True):
+        # All the physics is handled here, but we need to let the other object know about and react to the collision. For the sake of polymorphism.
+
+        if first_caller:
+            self.bounce(other)
+            other.on_collision(self, first_caller=False)
 
 class AttachableObject(GravitatedObject, pyglSprite.Sprite):
     """
@@ -137,9 +180,6 @@ class AttachableObject(GravitatedObject, pyglSprite.Sprite):
             self.attached_rotation = orientation
             self.set_position()
             self.align_transformations()
-
-        #self.circle.visible = False
-        #self.in_circle.visible = False
 
     """
     Aligns the circle and sprite transformations
@@ -213,83 +253,14 @@ class AttachableObject(GravitatedObject, pyglSprite.Sprite):
         newVelocityY = math.cos(self.rotation*math.pi/180) * .5
         self.force_on_center([newVelocityX*self.mass, newVelocityY*self.mass])
 
+        self.move(self.velocity[0], self.velocity[1], 0)
+
         self.drotation = self.attached.drotation
         self.attached = None
 
     def render_function(self):
         self.draw()
 
-"""
-Handles collision between two gravitatedObject's
-Uses law of conservation of momentum and law of conservatino of energy
-"""
-def on_collision_get_normal(c1, other): # Gets normals for on_collision
-    # Make sure the objects are sufficiently close
-    assert c1.circle.radius + other.circle.radius + 1 > math.sqrt((c1.circle.x-other.circle.x)**2 + (c1.circle.y-other.circle.y)**2)
-    centroidDistance = c1.circle.radius + other.circle.radius
-    normalVelocityDir = [(other.circle.x-c1.circle.x)/centroidDistance, (other.circle.y-c1.circle.y)/centroidDistance] # Normalized to be length 1
-    normalVelocityScalar = (normalVelocityDir[0]*c1.velocity[0] + normalVelocityDir[1]*c1.velocity[1]) # Length of self.velocity cancels out with cos() vector formula
 
-    normalVelocity = [normalVelocityDir[0]*normalVelocityScalar, normalVelocityDir[1]*normalVelocityScalar]
-    return normalVelocity
-
-def on_collision(c1, other):
-    if c1.circle.radius + other.circle.radius + 1 <= math.sqrt((c1.circle.x-other.circle.x)**2 + (c1.circle.y-other.circle.y)**2):
-        return
-    
-    # Make sure the objects are sufficiently close
-    normalVelocity = on_collision_get_normal(c1, other)
-    normalScalar = math.sqrt(normalVelocity[0]**2 + normalVelocity[1]**2)
-    
-    otherNormal = on_collision_get_normal(other, c1)
-    otherScalar = math.sqrt(otherNormal[0]**2 + otherNormal[1]**2)
-
-    if c1 not in planets:
-        # Other is not affected by this one's physics
-        c1.velocity = [-normalVelocity[0], -normalVelocity[1]]
-        c1.move(c1.velocity[0], c1.velocity[1], 0)
-        return
-    if other not in planets:
-        other.velocity = [-otherNormal[0], -otherNormal[1]]
-        other.move(other.velocity[0], other.velocity[1], 0)
-        return
-    if normalScalar == 0 or otherScalar == 0:
-        return
-    # Now to use our equations!
-    e_constant = c1.mass*(normalScalar**2) + other.mass*(otherScalar**2)
-    m_constant = c1.mass*normalScalar + other.mass*otherScalar
-
-    newOtherScalar = m_constant + math.sqrt(m_constant**2 - (c1.mass + other.mass)*((m_constant**2) - c1.mass*e_constant)/other.mass)
-    newOtherScalar /= c1.mass + other.mass
-    newOtherVelocity = [otherNormal[0]*newOtherScalar/otherScalar, otherNormal[1]*newOtherScalar/otherScalar]
-    #if oth
-    other.velocity[0] -= otherNormal[0] - newOtherVelocity[0]
-    other.velocity[1] -= otherNormal[1] - newOtherVelocity[1]
-
-    newNormalScalar = (m_constant - other.mass*newOtherScalar)/c1.mass
-    newNormalVelocity = [normalVelocity[0]*newNormalScalar/normalScalar, normalVelocity[1]*newNormalScalar/normalScalar]
-    
-    c1.velocity[0] -= normalVelocity[0] - newNormalVelocity[0]
-    c1.velocity[1] -= normalVelocity[1] - newNormalVelocity[1]
-    # If the distance still isn't closed
-    if distance([c1.circle.x + c1.velocity[0], c1.circle.y + c1.velocity[1]], [other.circle.x + other.velocity[0], other.circle.y + other.velocity[1]]) < c1.circle.radius + other.circle.radius + 1:
-        c1.velocity[0] -= 2*newNormalVelocity[0]
-        c1.velocity[1] -= 2*newNormalVelocity[1]
-        other.velocity[0] -= 2*newOtherVelocity[0]
-        other.velocity[1] -= 2*newOtherVelocity[1]
-    
-    c1.circle.x += c1.velocity[0]
-    c1.circle.y += c1.velocity[1]
-    other.circle.x += other.velocity[0]
-    other.circle.y += other.velocity[1]
-    c1.in_circle.x = c1.circle.x
-    c1.in_circle.y = c1.circle.y
-    other.in_circle.x = other.circle.x
-    other.in_circle.y = other.circle.y
-
-    c1.set_physics_data()
-    other.set_physics_data()
-
-planets.append(GravitatedObject(400, 350, 10, [0, 0], 5, 0.5))
-
-        
+planets.append(GravitatedObject(300, 350, 10, [0, 0], 1, 25))
+planets.append(GravitatedObject(500, 350, 10, [0, 0], 1, 25))

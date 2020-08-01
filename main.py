@@ -1,7 +1,7 @@
 import players
-import pyglet
+import pyglet.clock
 import pyglet.window.key as pyglKey
-from GravitationObject import on_collision, render_batch, planets
+from GravitationObject import check_collision, render_batch, planets
 import time
 
 soldier = players.Soldier(attached=planets[0])
@@ -21,17 +21,19 @@ class main(pyglet.window.Window):
         start = time.time()
         for i in range(len(planets)):
             planet = planets[i]
-            planet.next_move()
             for x in range(i, len(planets)):
                 otherPlanet = planets[x]
                 if otherPlanet != planet:
-                    on_collision(planet, otherPlanet)
+                    if (check_collision(planet, otherPlanet)):
+                        planet.on_collision(otherPlanet)
+            planet.next_move()
 
         if self.left_pressed:
             soldier.walk(-1)
         if self.right_pressed:
             soldier.walk(1)
         soldier.next_move()
+        print(soldier.position)
 
     def on_draw(self):
         self.clear()
@@ -56,8 +58,7 @@ class main(pyglet.window.Window):
             self.right_pressed = False
 
     def on_mouse_press(self, x, y, button, modifiers):
-        return
-        planets.append(GravitatedObject(x, y, 20, [0, 0], 5, 2, planets))
+        soldier.shoot([x, y])
 
 
 if __name__=="__main__":

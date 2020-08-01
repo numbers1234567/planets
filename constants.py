@@ -1,6 +1,6 @@
 import pyglet.image
 
-gravConstant = 10#Gravitational constant
+gravConstant = 0.5#Gravitational constant
 
 speedFactor = 0.1
 
