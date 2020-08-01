@@ -24,17 +24,16 @@ class Projectile(GravitationObject.GravitatedObject, pyglet.sprite.Sprite):
     """
     def on_collision(self, other, first_caller=True):
         super().on_collision(other, first_caller=first_caller)
-        return
 
     def destroy(self):
-        self.x += 10000
-        self.y += 10000
+        self.circle.x += 10000
+        self.circle.y += 10000
         self.set_physics_data()
 
 class Rocket(Projectile):
     img = soldier_img
     speed = 3
-    mass = 10
+    mass = 0.1
     def __init__(self, x, y, vel):
         super().__init__(x, y, vel)
 
@@ -46,11 +45,12 @@ class Rocket(Projectile):
     
     def on_collision(self, other, first_caller=True):
         super().on_collision(other, first_caller=first_caller)
+
         forceVec = [other.circle.x - self.circle.x, other.circle.y - self.circle.y]
         scalar = sqrt(forceVec[0]**2 + forceVec[1]**2)
-        forceVec[0] *= 0.1/scalar
-        forceVec[1] *= 0.1/scalar
+        forceVec[0] *= 10/scalar
+        forceVec[1] *= 10/scalar
 
         other.force_on_center(forceVec)
 
-        self.move(100000, 10000)
+        self.destroy()

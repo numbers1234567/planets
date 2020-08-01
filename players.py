@@ -5,7 +5,7 @@ from math import sqrt, acos, cos, sin, pi
 
 class Soldier(AttachableObject):
     def __init__(self, x=0, y=0, speed=6, mass=1, attached=None):
-        super().__init__(soldier_img, 10, x=x, y=y, attached=attached)
+        super().__init__(soldier_img, 10, x=x, y=y, mass=mass, attached=attached)
         self.speed = speed
         self.current_ammo = None
         self.current_projectile = Rocket
@@ -46,13 +46,11 @@ class Soldier(AttachableObject):
         vecY /= vecScalar
 
         projectile = self.current_projectile(self.x + vecX*(self.circle.radius+10), self.y + vecY*(self.circle.radius+10), [vecX, vecY])
-        projectile.velocity[0] += self.velocity[0]
-        projectile.velocity[1] += self.velocity[1]
 
         if not self.attached:
             # Recoil
-            self.velocity[0] = (self.velocity[0]*(self.mass + projectile.mass) - projectile.mass*projectile.velocity[0])/self.mass
-            self.velocity[1] = (self.velocity[1]*(self.mass + projectile.mass) - projectile.mass*projectile.velocity[1])/self.mass
+            self.velocity[0] -= projectile.mass*projectile.velocity[0]/self.mass
+            self.velocity[1] -= projectile.mass*projectile.velocity[1]/self.mass
 
         planets.append(projectile)
 
