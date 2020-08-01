@@ -5,7 +5,7 @@ from math import sqrt, acos, cos, sin, pi
 
 class Soldier(AttachableObject):
     def __init__(self, x=0, y=0, speed=6, mass=1, attached=None):
-        super().__init__(soldier_img, 10, x=x, y=y, mass=mass, attached=attached)
+        super().__init__(soldier_img, 20, x=x, y=y, mass=mass, attached=attached)
         self.speed = speed
         self.current_ammo = None
         self.current_projectile = Rocket
@@ -24,6 +24,7 @@ class Soldier(AttachableObject):
     def on_collision(self, other, first_caller=True):
         super().on_collision(other, first_caller=first_caller)
         rotVector = [cos((self.rotation-90)*pi/180), sin((self.rotation-90)*pi/180)]
+        
         rotVectorScalar = sqrt(rotVector[0]**2 + rotVector[1]**2)
         relPositionVector = [other.circle.x - self.circle.x, other.circle.y - self.circle.y]
         relPositionVectorScalar = sqrt(relPositionVector[0]**2 + relPositionVector[1]**2)

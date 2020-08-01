@@ -153,9 +153,9 @@ class GravitatedObject:
 
         c1.velocity = newVel
         other.velocity = newOtherVel
-        while check_collision(c1, other):
+        """while check_collision(c1, other):
             c1.move(c1.velocity[0], c1.velocity[1], rotation=0)
-            other.move(other.velocity[0], other.velocity[1], rotation=0)
+            other.move(other.velocity[0], other.velocity[1], rotation=0)"""
 
     def on_collision(self, other, first_caller=True):
         # All the physics is handled here, but we need to let the other object know about and react to the collision. For the sake of polymorphism.
@@ -235,19 +235,15 @@ class AttachableObject(GravitatedObject, pyglSprite.Sprite):
     Attaches based on closest landing point, so rotation is resolved afterwards
     """
     def attach(self, other):
-        world_orientation = math.atan((self.y-other.circle.y)/(self.x-other.circle.x)) # Soon to be self.attached_rotation + self.attached.rotation
         self.attached = other
-        # resolve orientation
-        self.rotation = world_orientation
-        self.attached_rotation = world_orientation-self.attached.physrotation
-        self.set_position()
-        self.set_physics_data()
+        self.attached_rotation = self.rotation - other.physrotation
 
     """
     Deattach, will follow its own physics freely
     """
     def deattach(self):
         if not self.attached: return
+        self.velocity = [0, 0]
         # Calculate new velocity
         newVelocityX = math.sin(self.rotation*math.pi/180) * .5
         newVelocityY = math.cos(self.rotation*math.pi/180) * .5
