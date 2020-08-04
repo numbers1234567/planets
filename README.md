@@ -3,4 +3,4 @@ A program which uses physics concepts, such as the gravitational force equation,
 
 This uses a Python library called pyglet which is a high-level binding to OpenGL, much like how pygame is bound to SDL.
 
-Something I love about this is, if you start with a certain state for the program, there's no randomness, despite the apparent chaos. The state of the program after a certain number of frames is always calculable, demonstrated by running the program multiple times from the start state.
+Something I love about this is, if you start with a certain state for the program, there's no randomness, despite the apparent chaos. The state of the program after a certain number of frames is always calculable, demonstrated by running the program multiple times from the start state. That is, unless you change something manually.
